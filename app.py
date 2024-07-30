@@ -197,28 +197,7 @@ for fig in [fig_optimized, fig_unoptimized]:
         width=800,  # Width to make it more rectangular
         height=700,  # Height to make it more rectangular
         margin={"r": 0, "t": 0, "l": 0, "b": 0},  # Remove extra margins
-        updatemenus=[{
-            "buttons": [
-                {
-                    "args": [None, {"frame": {"duration": 500, "redraw": True}, "fromcurrent": True, "transition": {"duration": 500}}],
-                    "label": "Play",
-                    "method": "animate"
-                },
-                {
-                    "args": [[None], {"frame": {"duration": 0, "redraw": True}, "mode": "immediate", "transition": {"duration": 0}}],
-                    "label": "Pause",
-                    "method": "animate"
-                }
-            ],
-            "direction": "left",
-            "pad": {"r": 10, "t": 87},
-            "showactive": False,
-            "type": "buttons",
-            "x": 0.1,
-            "xanchor": "right",
-            "y": 0,
-            "yanchor": "top"
-        }]
+        updatemenus=[]
     )
 
 # Define the Dash layout
@@ -237,39 +216,36 @@ app.layout = html.Div([
         html.Div(style={'width': '50%', 'textAlign': 'center', 'position': 'relative'}, children=[
             html.H2('Unoptimized', style={'color': 'black'}),
             dcc.Graph(id='map-unoptimized', figure=fig_unoptimized, className='map-container'),
-            html.Div(id='time-display-unoptimized', style={'position': 'absolute', 'top': '10px', 'left': '10px', 'color': 'black', 'fontSize': '20px', 'backgroundColor': 'white', 'padding': '5px', 'borderRadius': '5px'}),
-            html.Div(id='charging-display-unoptimized', style={'position': 'absolute', 'top': '10px', 'right': '10px', 'color': 'red', 'fontSize': '20px', 'backgroundColor': 'white', 'padding': '5px', 'borderRadius': '5px'})
+            html.Div(id='time-display-unoptimized', style={'position': 'absolute', 'top': '10px', 'left': 'calc(50% - 75px)', 'color': 'black', 'fontSize': '20px', 'backgroundColor': 'white', 'padding': '5px', 'borderRadius': '5px', 'width': '150px', 'textAlign': 'center'}),
+            html.Div(id='charging-display-unoptimized', style={'position': 'absolute', 'top': '40px', 'left': 'calc(50% - 75px)', 'color': 'red', 'fontSize': '20px', 'backgroundColor': 'white', 'padding': '5px', 'borderRadius': '5px', 'width': '150px', 'textAlign': 'center'})
         ]),
         html.Div(style={'width': '50%', 'textAlign': 'center', 'position': 'relative'}, children=[
             html.H2('Optimized', style={'color': 'black'}),
             dcc.Graph(id='map-optimized', figure=fig_optimized, className='map-container'),
-            html.Div(id='time-display-optimized', style={'position': 'absolute', 'top': '10px', 'left': '10px', 'color': 'black', 'fontSize': '20px', 'backgroundColor': 'white', 'padding': '5px', 'borderRadius': '5px'}),
-            html.Div(id='charging-display-optimized', style={'position': 'absolute', 'top': '10px', 'right': '10px', 'color': 'red', 'fontSize': '20px', 'backgroundColor': 'white', 'padding': '5px', 'borderRadius': '5px'})
+            html.Div(id='time-display-optimized', style={'position': 'absolute', 'top': '10px', 'left': 'calc(50% - 75px)', 'color': 'black', 'fontSize': '20px', 'backgroundColor': 'white', 'padding': '5px', 'borderRadius': '5px', 'width': '150px', 'textAlign': 'center'}),
+            html.Div(id='charging-display-optimized', style={'position': 'absolute', 'top': '40px', 'left': 'calc(50% - 75px)', 'color': 'red', 'fontSize': '20px', 'backgroundColor': 'white', 'padding': '5px', 'borderRadius': '5px', 'width': '150px', 'textAlign': 'center'})
         ])
     ]),
-    dcc.Interval(id='interval-component', interval=500, n_intervals=0, disabled=True)  # Update every 500 ms, disabled by default
+    dcc.Interval(id='interval-component', interval=500, n_intervals=0)  # Update every 500 ms, enabled by default
 ])
 
 @app.callback(
-    [Output('interval-component', 'disabled'), Output('interval-component', 'n_intervals')],
-    [Input('map-optimized', 'relayoutData'), Input('map-unoptimized', 'relayoutData')],
+    [Output('interval-component', 'n_intervals')],
+    [Input('interval-component', 'n_intervals')],
     [State('interval-component', 'n_intervals')]
 )
-def control_interval(relayout_data_optimized, relayout_data_unoptimized, n_intervals):
-    if (relayout_data_optimized and 'sliders[0].value' in relayout_data_optimized) or (relayout_data_unoptimized and 'sliders[0].value' in relayout_data_unoptimized):
-        if (relayout_data_optimized and relayout_data_optimized['sliders[0].value'] == 0) or (relayout_data_unoptimized and relayout_data_unoptimized['sliders[0].value'] == 0):
-            return False, 0  # Enable the interval and reset n_intervals when starting
-        return False, n_intervals  # Enable the interval when animation is playing
-    return True, n_intervals  # Disable the interval when animation is paused
+def loop_animation(n_intervals, state_n_intervals):
+    if n_intervals >= len(times):
+        return [0]
+    return [state_n_intervals + 1]
 
 @app.callback(
     [Output('time-display-optimized', 'children'), Output('charging-display-optimized', 'children'), 
      Output('time-display-unoptimized', 'children'), Output('charging-display-unoptimized', 'children')],
-    [Input('interval-component', 'n_intervals')],
-    [State('interval-component', 'disabled')]
+    [Input('interval-component', 'n_intervals')]
 )
-def update_time_and_charging(n_intervals, interval_disabled):
-    frame_idx = n_intervals % len(times) if not interval_disabled else 0
+def update_time_and_charging(n_intervals):
+    frame_idx = n_intervals % len(times)
     current_time_display = times[frame_idx]
     charging_status_display_optimized = charging_status_optimized[frame_idx]
     charging_status_display_unoptimized = charging_status_unoptimized[frame_idx]
@@ -277,9 +253,9 @@ def update_time_and_charging(n_intervals, interval_disabled):
 
 @app.callback(
     [Output('map-optimized', 'figure'), Output('map-unoptimized', 'figure')],
-    [Input('dark-mode-toggle', 'value')]
+    [Input('interval-component', 'n_intervals'), Input('dark-mode-toggle', 'value')]
 )
-def update_map_style(dark_mode):
+def update_map(n_intervals, dark_mode):
     # Create a copy of the figures using to_dict and from_dict
     updated_fig_dict_optimized = fig_optimized.to_dict()
     updated_fig_dict_unoptimized = fig_unoptimized.to_dict()
@@ -292,7 +268,42 @@ def update_map_style(dark_mode):
     else:
         updated_fig_optimized.update_layout(mapbox_style="open-street-map")
         updated_fig_unoptimized.update_layout(mapbox_style="open-street-map")
-        
+    
+    # Update the current frame to reflect the van's position
+    frame_idx = n_intervals % len(times)
+    updated_fig_optimized.update(data=[
+        go.Scattermapbox(
+            lat=van_path_lats_optimized[:frame_idx + 1],
+            lon=van_path_lons_optimized[:frame_idx + 1],
+            mode='lines',
+            line=dict(width=6, color='#7DF9FF'),
+            name='Van Path'
+        ),
+        go.Scattermapbox(
+            lat=[van_path_lats_optimized[frame_idx]],
+            lon=[van_path_lons_optimized[frame_idx]],
+            mode='markers',
+            marker=dict(size=20, color='#7DF9FF'),
+            name='Van'
+        )
+    ])
+    updated_fig_unoptimized.update(data=[
+        go.Scattermapbox(
+            lat=van_path_lats_unoptimized[:frame_idx + 1],
+            lon=van_path_lons_unoptimized[:frame_idx + 1],
+            mode='lines',
+            line=dict(width=6, color='#FF4500'),
+            name='Van Path'
+        ),
+        go.Scattermapbox(
+            lat=[van_path_lats_unoptimized[frame_idx]],
+            lon=[van_path_lons_unoptimized[frame_idx]],
+            mode='markers',
+            marker=dict(size=20, color='#FF4500'),
+            name='Van'
+        )
+    ])
+    
     return updated_fig_optimized, updated_fig_unoptimized
 
 if __name__ == '__main__':
